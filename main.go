@@ -29,9 +29,8 @@ func runHttpServer(counter Counter, allowedParallels int) *http.Server {
 	var semaphore = make(chan int, allowedParallels)
 	h := func(w http.ResponseWriter, _ *http.Request) {
 		semaphore <- 1
-		count := counter.GetCounter()
+		io.WriteString(w, fmt.Sprintf("%d requests in the last %d seconds\n", counter.GetCounter(), windowSizeInSeconds))
 		<-semaphore
-		io.WriteString(w, fmt.Sprintf("%d requests in the last %d seconds\n", count, windowSizeInSeconds))
 	}
 	http.HandleFunc("/", h)
 

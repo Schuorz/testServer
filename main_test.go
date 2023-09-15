@@ -102,7 +102,7 @@ func TestRunHttpServerWithParallelLimit(t *testing.T) {
 		}
 	}
 
-	if immediate+afterThree+afterSix != 0 {
+	if immediate != 0 || afterThree != 0 || afterSix != 0 {
 		t.Errorf("request did not run parallel as expected:\nimmediate: %d\nafter three seconds: %d\nafter six seconds: %d\n",
 			immediate, afterThree, afterSix)
 	}
