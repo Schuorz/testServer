@@ -50,7 +50,7 @@ func TestNewWindow(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		rw := NewWindow(tt.args, 60)
+		rw := NewWindow(tt.args, 60, 2)
 		if !reflect.DeepEqual(rw.window, tt.want.window) {
 			t.Errorf("want: %+v, got: %+v for %s\n", tt.want.window, rw.window, tt.name)
 		}
@@ -103,7 +103,7 @@ func TestNewWindowFromFile(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		rw, err := NewWindowFromFile(tt.args, 60)
+		rw, err := NewWindowFromFile(tt.args, 60, 2)
 		if err != nil && !tt.isError {
 			t.Errorf("got unexpected error: %s", err.Error())
 		}
@@ -216,5 +216,39 @@ func TestGetCounterConcurrencyCorrectCounter(t *testing.T) {
 	crtCounter := rw.GetCounter()
 	if crtCounter != 100 {
 		t.Errorf("counter is not incrementing correctly: %d", crtCounter)
+	}
+}
+
+func TestGetCounterSleepDurations(t *testing.T) {
+	tests := []struct {
+		rw      *RequestWindow
+		runtime int
+		name    string
+	}{
+		{
+			rw:      &RequestWindow{wSizeSeconds: 5, requestSleepSeconds: 1},
+			runtime: 1,
+			name:    "one seconds of work",
+		},
+		{
+			rw:      &RequestWindow{wSizeSeconds: 5, requestSleepSeconds: 2},
+			runtime: 2,
+			name:    "two seconds of work",
+		},
+		{
+			rw:      &RequestWindow{wSizeSeconds: 5, requestSleepSeconds: 4},
+			runtime: 4,
+			name:    "four seconds of work",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			start := time.Now()
+			_ = tt.rw.GetCounter()
+			timeTaken := time.Now().Sub(start).Seconds()
+			if timeTaken < float64(tt.runtime) || timeTaken > float64(tt.runtime)+1.0 {
+				t.Errorf("runtime was %f, should have been %f\n", timeTaken, float64(tt.runtime))
+			}
+		})
 	}
 }

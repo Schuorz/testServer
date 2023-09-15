@@ -11,13 +11,14 @@ import (
 const requestWindowTimeFormat = "2006-01-02 15:04:05"
 
 type RequestWindow struct {
-	lock         sync.Mutex
-	window       []time.Time
-	wSizeSeconds int
+	lock                sync.Mutex
+	window              []time.Time
+	wSizeSeconds        int
+	requestSleepSeconds int
 }
 
 // NewWindowFromFile creates a new RequestWindow populating it with a window read from a file under path
-func NewWindowFromFile(path string, windowSizeSeconds int) (*RequestWindow, error) {
+func NewWindowFromFile(path string, windowSizeSeconds int, reqSleepSeconds int) (*RequestWindow, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -33,26 +34,33 @@ func NewWindowFromFile(path string, windowSizeSeconds int) (*RequestWindow, erro
 		startWindow = append(startWindow, t)
 	}
 
-	return NewWindow(startWindow, windowSizeSeconds), nil
+	return NewWindow(startWindow, windowSizeSeconds, reqSleepSeconds), nil
 }
 
 // NewWindow creates a new RequestWindow optionally from a starting window if startWindow is not nil
-func NewWindow(startWindow []time.Time, windowSizeSeconds int) *RequestWindow {
+func NewWindow(startWindow []time.Time, windowSizeSeconds int, reqSleepSeconds int) *RequestWindow {
 	return &RequestWindow{
-		window:       startWindow,
-		wSizeSeconds: windowSizeSeconds,
+		window:              startWindow,
+		wSizeSeconds:        windowSizeSeconds,
+		requestSleepSeconds: reqSleepSeconds,
 	}
 }
 
 // GetCounter removes all entries in the window that were created prior 60 secondes ago, adds a new one
 // for the caller and returns the count of entries in the window
 func (r *RequestWindow) GetCounter() int {
-	r.lock.Lock()
+
 	// now should only be set after the lock is acquired, this should keep the times in order
 	now := time.Now()
+
+	// sleep for as long as required (simulate work)
+	time.Sleep(time.Second * time.Duration(r.requestSleepSeconds))
+
 	windowSizeAgo := now.Add(-time.Second * time.Duration(r.wSizeSeconds))
 
 	newEarliestIdx := 0
+	// lock as soon as we access r
+	r.lock.Lock()
 	for i, e := range r.window {
 		if e.Before(windowSizeAgo) {
 			continue
