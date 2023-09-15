@@ -12,8 +12,10 @@ import (
 	"simplesurance/requestwindow"
 )
 
+// configuration on production
 const requestWindowFilePath = "./currentWindow"
 const windowSizeInSeconds = 60
+const requestSleepSeconds = 2
 
 type Counter interface {
 	GetCounter() int
@@ -44,9 +46,9 @@ func runHttpServer(counter Counter) {
 func main() {
 	var rw *requestwindow.RequestWindow
 	if _, err := os.Stat(requestWindowFilePath); errors.Is(err, os.ErrNotExist) {
-		rw = requestwindow.NewWindow(nil, windowSizeInSeconds)
+		rw = requestwindow.NewWindow(nil, windowSizeInSeconds, requestSleepSeconds)
 	} else {
-		rw, err = requestwindow.NewWindowFromFile(requestWindowFilePath, windowSizeInSeconds)
+		rw, err = requestwindow.NewWindowFromFile(requestWindowFilePath, windowSizeInSeconds, requestSleepSeconds)
 		if err != nil {
 			log.Fatalf("unable to create request window from file: %s\nconsider delting file", err.Error())
 		}
