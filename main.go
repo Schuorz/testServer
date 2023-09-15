@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -23,8 +24,7 @@ type Counter interface {
 	SaveCounter(path string) error
 }
 
-func runHttpServer(counter Counter, allowedParallels int) {
-
+func runHttpServer(counter Counter, allowedParallels int) *http.Server {
 	// semaphore is a channel that will allow up to n operations at once.
 	var semaphore = make(chan int, allowedParallels)
 	h := func(w http.ResponseWriter, _ *http.Request) {
@@ -42,12 +42,15 @@ func runHttpServer(counter Counter, allowedParallels int) {
 			log.Printf("unable to save current window: %s", err.Error())
 		}
 	}()
-	err := http.ListenAndServe(":8080", nil)
-	if err != nil {
-		log.Printf("server stoped operating: %s", err.Error())
-	}
+	srv := &http.Server{Addr: ":8080"}
+	go func() {
+		err := srv.ListenAndServe()
+		if err != nil {
+			log.Printf("server stoped operating: %s", err.Error())
+		}
+	}()
 
-	return
+	return srv
 }
 
 func main() {
@@ -61,15 +64,13 @@ func main() {
 		}
 	}
 
+	srv := runHttpServer(rw, allowedParallelThreads)
+
 	sigChannel := make(chan os.Signal)
 	signal.Notify(sigChannel, os.Interrupt)
 	// save request window on SIGINT
-	go func() {
-		<-sigChannel
-		rw.SaveCounter(requestWindowFilePath)
-		os.Exit(1)
-	}()
-
-	runHttpServer(rw, allowedParallelThreads)
-
+	<-sigChannel
+	srv.Shutdown(context.TODO())
+	rw.SaveCounter(requestWindowFilePath)
+	os.Exit(0)
 }

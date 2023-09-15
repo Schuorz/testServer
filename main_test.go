@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -23,8 +24,13 @@ func (s simpleCounter) SaveCounter(path string) error {
 }
 
 func TestRunHttpServer(t *testing.T) {
-	go runHttpServer(simpleCounter{1}, 5)
-
+	srv := runHttpServer(simpleCounter{1}, 5)
+	t.Cleanup(func() {
+		srv.Shutdown(context.TODO())
+		// http.DefaultServeMux seems to outlive tests, needs to be wiped for next test
+		// initilized as in http/server.go:2338
+		http.DefaultServeMux = new(http.ServeMux)
+	})
 	//give the server a second
 	time.Sleep(time.Second * 1)
 
@@ -45,8 +51,13 @@ func TestRunHttpServer(t *testing.T) {
 
 // Tests whether only 2 threads are running in parallel
 func TestRunHttpServerWithParallelLimit(t *testing.T) {
-	go runHttpServer(simpleCounter{3}, 2)
-
+	srv := runHttpServer(simpleCounter{3}, 2)
+	t.Cleanup(func() {
+		srv.Shutdown(context.TODO())
+		// http.DefaultServeMux seems to outlive tests, needs to be wiped for next test
+		// initilized as in http/server.go:2338
+		http.DefaultServeMux = new(http.ServeMux)
+	})
 	//give the server a second
 	time.Sleep(time.Second * 1)
 
