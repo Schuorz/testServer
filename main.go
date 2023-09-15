@@ -16,15 +16,22 @@ import (
 const requestWindowFilePath = "./currentWindow"
 const windowSizeInSeconds = 60
 const requestSleepSeconds = 2
+const allowedParallelThreads = 5
 
 type Counter interface {
 	GetCounter() int
 	SaveCounter(path string) error
 }
 
-func runHttpServer(counter Counter) {
+func runHttpServer(counter Counter, allowedParallels int) {
+
+	// semaphore is a channel that will allow up to n operations at once.
+	var semaphore = make(chan int, allowedParallels)
 	h := func(w http.ResponseWriter, _ *http.Request) {
-		io.WriteString(w, fmt.Sprintf("%d requests in the last %d seconds\n", counter.GetCounter(), windowSizeInSeconds))
+		semaphore <- 1
+		count := counter.GetCounter()
+		<-semaphore
+		io.WriteString(w, fmt.Sprintf("%d requests in the last %d seconds\n", count, windowSizeInSeconds))
 	}
 	http.HandleFunc("/", h)
 
@@ -63,6 +70,6 @@ func main() {
 		os.Exit(1)
 	}()
 
-	runHttpServer(rw)
+	runHttpServer(rw, allowedParallelThreads)
 
 }
